@@ -27,7 +27,7 @@
                     <div class="blog-post">
                     <img src="<?= htmlspecialchars($image)?>">
                     <h1><?= htmlspecialchars($title) ?></h1>
-                    <p><span id=blog-author>Kel Surpreeze</span> | 06 July 2025</p>
+                    <p><span id=blog-author>Mudo</span> | 06 July 2025</p>
                     <hr>
                     <p></p>
                     <div/>
@@ -41,20 +41,25 @@
                     <hr>
                     <section class="add-comment">
                         <h2>Leave a comment</h2>
-                        <form action="/post/comment" method="POST" enctype="application/x-www-form-urlencoded">
-                            <input required type="hidden" name="csrf" value="Z2tgulamLaT0nca9sPYbm1ldYVXNhJ0n">
-                            <input required type="hidden" name="postId" value="1">
-                            <label>Comment:</label>
-                            <div>HTML is allowed</div>
-                            <textarea required rows="12" cols="300" name="comment"></textarea>
-                                    <label>Name:</label>
-                                    <input required type="text" name="name">
-                                    <label>Email:</label>
-                                    <input required type="email" name="email">
-                                    <label>Website:</label>
-                                    <input pattern="(http:|https:).+" type="text" name="website">
-                            <button class="button" type="submit">Post Comment</button>
-                        </form>
+                        <?php if (!empty($error)): ?>
+                        <p style="color:red;"><?=htmlspecialchars($error)?></p>
+                    <?php endif; ?>
+
+                    <form method="post" action="post.php?id=<?= $post_id ?>">
+                        <label>이름: <input type="text" name="author" required></label><br>
+                        <label>댓글: <br><textarea name="comment" rows="4" cols="50" required></textarea></label><br>
+                        <button type="submit">댓글 작성</button>
+                    </form>
+
+                    <ul>
+                        <?php foreach ($comments as $c): ?>
+                            <li>
+                                <strong><?=htmlspecialchars($c['author'])?></strong>
+                                <em>(<?= $c['created_at'] ?>)</em><br>
+                                <?=nl2br(htmlspecialchars($c['comment']))?>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
                     </section>
                     <div class="is-linkback">
                         <a href="/">Back to Blog</a>
