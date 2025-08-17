@@ -1,36 +1,29 @@
 <?php
-    include "inc_post.php"
-?>
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+$db_conn = new mysqli("localhost", "root", "", "blog");
+$db_conn->set_charset("utf8mb4");
 
+include 'inc_post.php';
+
+$posts = get_all_posts($db_conn);
+?>
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Dom</title>
-    <link href="/css/header.css" rel="stylesheet">
-    <link href="/css/blog.css" rel="stylesheet">
+    <title>게시글 목록</title>
+    <link rel="stylesheet" href="css/blog.css">
 </head>
 <body>
-    <div id="header">
-        <section class="banner">
-            <h1>Blog</h1>
-        </section>
-    </div>
-
-    <div theme="blog">
-        <section class="maincontainer">
-            <div class="container is-page">
-                <section class="blog-list">
-
-                    <div class="blog-post">
-                        <h2>Click</h2>
-                        <a class="button is-small" href="/Web_PJ/post.php?postId=1">View post</a>
-                    </div>
-
-
-                </section>
-            </div>
-        </section>
-    </div>
+<h1>Blog</h1>
+<ul>
+    <?php foreach ($posts as $post): ?>
+        <li>
+            <a href="post.php?id=<?= $post['id'] ?>">
+                <?= htmlspecialchars($post['title']) ?>
+            </a>
+        </li>
+    <?php endforeach; ?>
+</ul>
 </body>
 </html>

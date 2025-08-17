@@ -1,41 +1,30 @@
 <?php
-mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
-
-try {
-    // DB 연결
-    $db_conn = new mysqli("localhost", "root", "", "blog");
-    $db_conn->set_charset("utf8mb4");
-
-    // post_id 가져오기
-    $post_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
-
-    // 게시글 조회
-    $query = "SELECT title, img_url FROM posts WHERE id = ?";
-    $stmt = $db_conn->prepare($query);
+// 게시글 조회 기능
+function get_post($db_conn, $post_id) {
+    $stmt = $db_conn->prepare("SELECT id, title, img_url FROM posts WHERE id = ?");
     $stmt->bind_param("i", $post_id);
     $stmt->execute();
-    $stmt->bind_result($title, $imageUrl);
+    $stmt->bind_result($id, $title, $img_url);
 
     if ($stmt->fetch()) {
         $post = [
-            'id' => $post_id,
+            'id' => $id,
             'title' => $title,
-            'img_url' => $imageUrl
+            'img_url' => $img_url
         ];
     } else {
-        $post = [
-            'id' => 0,
-            'title' => "게시글을 찾을 수 없습니다.",
-            'img_url' => "/images/no-image.png"
-        ];
+        $post = null;
     }
-
     $stmt->close();
-    // 여기서 close() 안 함 → 다른 코드에서도 $db_conn 사용 가능
+    return $post;
+}
 
-} catch (mysqli_sql_exception $e) {
-    error_log($e->getMessage());
-    echo "데이터베이스 오류가 발생했습니다.";
-    exit;
+function get_all_posts($db_conn) {
+    $posts = [];
+    $result = $db_conn->query("SELECT id, title, img_url FROM posts ORDER BY id DESC");
+    while ($row = $result->fetch_assoc()) {
+        $posts[] = $row;
+    }
+    return $posts;
 }
 ?>

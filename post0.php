@@ -1,6 +1,4 @@
 <?php
-session_start(); // 세션 시작
-
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 $db_conn = new mysqli("localhost", "root", "", "blog");
 $db_conn->set_charset("utf8mb4");
@@ -28,10 +26,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     add_comment($db_conn, $post_id, $name, $email, $body);
 
-    // DOM XSS 조건 충족 시 플래그 세션 저장
-    $_SESSION['show_flag'] = true;
-
-    // 댓글 등록 후 리다이렉트 (URL에 flag 노출 없음)
     header("Location: post.php?id=" . $post_id);
     exit;
 }
@@ -53,22 +47,13 @@ $comments = get_comments($db_conn, $post_id);
     <meta charset="UTF-8">
     <title><?= htmlspecialchars($post['title']) ?></title>
     <link rel="stylesheet" href="css/post.css">
-    <script>
-        function previewComment() {
-            const body = document.getElementById('body').value;
-            // innerHTML 취약점 (DOM XSS 시연용)
-            document.getElementById('preview').innerHTML = body;
-        }
-    </script>
 </head>
 <body>
 <div class="container">
     <h1><?= htmlspecialchars($post['title']) ?></h1>
-    <img src="<?= htmlspecialchars($post['img_url']) ?>" alt="이미지" style="max-width:400px;">
+    <img src="<?= htmlspecialchars($post['img_url']) ?>" alt="이미지">
 
-    
-
-    <h3>댓글</h3>
+    <h2>댓글</h2>
     <ul>
         <?php foreach ($comments as $c): ?>
             <li>
@@ -78,42 +63,59 @@ $comments = get_comments($db_conn, $post_id);
         <?php endforeach; ?>
     </ul>
 
-    <h3>댓글 작성</h3>
+
+    <h3>작성한 댓글 미리보기</h3>
+
+    <div class="preview-wrap">
+    <div id="preview" class="preview-box">(미리보기 영역)</div>
+    <button type="button" id="previewBtn">미리보기</button>
+    </div>
+
+
+    <h2>댓글 작성</h2>
     <form method="POST" action="post.php?id=<?= $post_id ?>">
         <div class="form-group">   
             <label for="name">이름</label>
-            <input type="text" id='name' name="name" required><br>
+            <input type="text" id='name' name="name" required>
         </div>
-        
+         
         <div class="form-group">
             <label for="email">이메일</label>
-            <input type="email" id='email' name="email" required><br>
+            <input type="email" id='email' name="email" required>
         </div>
 
         <div class="form-group">
-            <textarea name="body" id='body' placeholder="HTML is allowed" required></textarea><br>
+            <label for="body">댓글</label>
+            <textarea name="body" id='body' placeholder="HTML is allowed" required></textarea>
         </div>
-        <button type="submit">댓글 작성</button>
-        <button type="button" onclick="previewComment()">미리보기</button>
-        
-    </form>
 
-    <h3>미리보기</h3>
-    <div id="preview" style="border:1px solid #ccc; padding:10px; min-height:50px;"></div>
+        <button type="submit">Post Comment</button>
+    </form>
 
     <div class="is-linkback">
         <a href="index.php">Back to Blog</a>
     </div>
 
 
-    <?php if (isset($_SESSION['show_flag']) && $_SESSION['show_flag'] === true): ?>
-        <div id="flag-container">
-            FLAG{DOM_XSS}
-        </div>
-        <?php unset($_SESSION['show_flag']); // 한 번만 노출 ?>
-    <?php endif; ?>
+    <script>
+    // 취약점 textarea 값을 innerHTML로 그대로 주입하는 DOM XSS
+    (function livePreview(){
+    var btn = document.getElementById("previewBtn");
+    var box = document.getElementById("preview");
+    var ta  = document.getElementById("body"); // 댓글 본문 textarea
+
+    if (btn && box && ta) {
+        btn.addEventListener("click", function () {
+        box.innerHTML = ta.value; // DOM XSS sink
+        });
+    }
+    })();
+    </script>
+
 
 
 </div>
+
 </body>
+
 </html>

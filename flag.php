@@ -1,3 +1,0 @@
-<?php
-echo "FLAG{dom_xss??}";
-?>
