@@ -98,8 +98,8 @@ button:hover {
 }
 
 /* 미리보기 박스 */
-#preview {
-    background-color: #fff;
+#preview-container {
+    background-color: #f9f9f9;
     border: 1px solid #ccc;
     padding: 15px;
     border-radius: 6px;

@@ -1,5 +1,5 @@
 <?php
-session_start();
+session_start(); // 세션 시작
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 $db_conn = new mysqli("localhost", "root", "", "blog");
@@ -17,28 +17,33 @@ if ($post_id <= 0) {
 
 // 댓글 등록 (POST 처리)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // 일반 댓글 등록
-    if (!isset($_POST['triggered'])) {
-        $name  = trim($_POST['name']);
-        $email = trim($_POST['email']);
-        $body  = trim($_POST['body']);
+    $name  = trim($_POST['name']);
+    $email = trim($_POST['email']);
+    $body  = trim($_POST['body']);
 
-        if ($name === "" || $email === "" || $body === "") {
-            echo "<script>alert('모든 필드를 입력해주세요.'); history.back();</script>";
-            exit;
-        }
-
-        add_comment($db_conn, $post_id, $name, $email, $body);
-
-        header("Location: post.php?id=" . $post_id);
+    if ($name === "" || $email === "" || $body === "") {
+        echo "<script>alert('모든 필드를 입력해주세요.'); history.back();</script>";
         exit;
     }
 
-    // DOM XSS 조건 충족 시 → 플래그 세션 저장
-    if (isset($_POST['triggered']) && $_POST['triggered'] === '1') {
+    add_comment($db_conn, $post_id, $name, $email, $body);
+
+    // DOM XSS 조건 충족 시 플래그 세션 저장
+    if(isset($_POST['triggered']) && $_POST['triggered'] === '1'){
+
+    
         $_SESSION['show_flag'] = true;
+
         exit('OK');
     }
+
+
+    // 댓글 등록 후 리다이렉트 (URL에 flag 노출 없음)
+    header("Location: post.php?id=" . $post_id);
+    exit;
+
+
+
 }
 
 // 게시글 조회
@@ -51,6 +56,7 @@ if (!$post) {
 // 댓글 조회
 $comments = get_comments($db_conn, $post_id);
 ?>
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -59,27 +65,31 @@ $comments = get_comments($db_conn, $post_id);
     <link rel="stylesheet" href="css/post.css">
     <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
     <script>
-        // 댓글 미리보기
-        function previewComment() {
+ 
+       /* function previewComment() {
+            const body = document.getElementById('body').value;
+            // innerHTML 취약점 (DOM XSS 시연용)
+            document.getElementById('preview').innerHTML = body;
+        } */
+
+            function previewComment() {
             const body = document.getElementById('body').value;
 
-            // DOMPurify로 필터링
             const cleanBody = DOMPurify.sanitize(body, {
                 ALLOWED_TAGS: ['b','i','em','strong','a','p','ul','ol','li','br','span','img'],
-                ALLOWED_ATTR: ['href','title','src','alt','class','style','onerror']
+                ALLOWED_ATTR: ['href','title','src','alt','class','style', 'onerror']
             });
 
             const previewContainer = document.getElementById('preview-container');
             previewContainer.innerHTML = cleanBody;
 
-            // <img>에 onerror가 있으면 notifyFlag 실행
+            // DOM XSS 조건 예시: <img> 태그에 onerror 존재 여부
             const img = previewContainer.querySelector('img[onerror]');
             if (img) {
-                notifyFlag();
+                notifyFlag(); // 조건 만족 시 AJAX로 플래그 세션 저장
             }
         }
 
-        // 플래그 세션 활성화 요청
         function notifyFlag() {
             fetch('post.php?id=<?= $post_id ?>', {
                 method: 'POST',
@@ -87,12 +97,17 @@ $comments = get_comments($db_conn, $post_id);
                 body: 'triggered=1'
             });
         }
+
     </script>
+
+
 </head>
 <body>
 <div class="container">
     <h1><?= htmlspecialchars($post['title']) ?></h1>
     <img src="<?= htmlspecialchars($post['img_url']) ?>" alt="이미지" style="max-width:400px;">
+
+    
 
     <h3>댓글</h3>
     <ul>
@@ -106,20 +121,23 @@ $comments = get_comments($db_conn, $post_id);
 
     <h3>댓글 작성</h3>
     <form method="POST" action="post.php?id=<?= $post_id ?>">
-        <div class="form-group">
+        <div class="form-group">   
             <label for="name">이름</label>
-            <input type="text" id="name" name="name" required><br>
+            <input type="text" id='name' name="name" required><br>
         </div>
+        
         <div class="form-group">
             <label for="email">이메일</label>
-            <input type="email" id="email" name="email" required><br>
+            <input type="email" id='email' name="email" required><br>
         </div>
+
         <div class="form-group">
             <label for="body">댓글</label>
-            <textarea name="body" id="body" required></textarea><br>
-        </div>
+            <textarea name="body" id='body' required></textarea><br>
+        </div> 
         <button type="submit">댓글 작성</button>
         <button type="button" onclick="previewComment()">미리보기</button>
+        
     </form>
 
     <h3>미리보기</h3>
@@ -135,6 +153,9 @@ $comments = get_comments($db_conn, $post_id);
         </div>
         <?php unset($_SESSION['show_flag']); ?>
     <?php endif; ?>
+
+
+
 </div>
 </body>
 </html>

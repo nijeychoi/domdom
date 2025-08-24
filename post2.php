@@ -1,5 +1,5 @@
 <?php
-session_start();
+session_start(); // 세션 시작
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 $db_conn = new mysqli("localhost", "root", "", "blog");
@@ -17,28 +17,29 @@ if ($post_id <= 0) {
 
 // 댓글 등록 (POST 처리)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // 일반 댓글 등록
-    if (!isset($_POST['triggered'])) {
-        $name  = trim($_POST['name']);
-        $email = trim($_POST['email']);
-        $body  = trim($_POST['body']);
 
-        if ($name === "" || $email === "" || $body === "") {
-            echo "<script>alert('모든 필드를 입력해주세요.'); history.back();</script>";
-            exit;
-        }
+    // [1] XSS 트리거만 처리하는 AJAX 요청
+    if (isset($_POST['triggered']) && $_POST['triggered'] === '1') {
+        $_SESSION['show_flag'] = true;
+        header('Content-Type: text/plain; charset=UTF-8');
+        exit('OK');
+    }
 
-        add_comment($db_conn, $post_id, $name, $email, $body);
+    // [2] 실제 댓글 등록
+    $name  = isset($_POST['name'])  ? trim($_POST['name'])  : '';
+    $email = isset($_POST['email']) ? trim($_POST['email']) : '';
+    $body  = isset($_POST['body'])  ? trim($_POST['body'])  : '';
 
-        header("Location: post.php?id=" . $post_id);
+    if ($name === "" || $email === "" || $body === "") {
+        echo "<script>alert('모든 필드를 입력해주세요.'); history.back();</script>";
         exit;
     }
 
-    // DOM XSS 조건 충족 시 → 플래그 세션 저장
-    if (isset($_POST['triggered']) && $_POST['triggered'] === '1') {
-        $_SESSION['show_flag'] = true;
-        exit('OK');
-    }
+    add_comment($db_conn, $post_id, $name, $email, $body);
+
+    // 댓글 등록 후 리다이렉트 (URL에 flag 노출 없음)
+    header("Location: post.php?id=" . $post_id);
+    exit;
 }
 
 // 게시글 조회
@@ -51,6 +52,7 @@ if (!$post) {
 // 댓글 조회
 $comments = get_comments($db_conn, $post_id);
 ?>
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -59,32 +61,39 @@ $comments = get_comments($db_conn, $post_id);
     <link rel="stylesheet" href="css/post.css">
     <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
     <script>
-        // 댓글 미리보기
         function previewComment() {
             const body = document.getElementById('body').value;
 
-            // DOMPurify로 필터링
+            // DOMPurify 필터링
             const cleanBody = DOMPurify.sanitize(body, {
-                ALLOWED_TAGS: ['b','i','em','strong','a','p','ul','ol','li','br','span','img'],
-                ALLOWED_ATTR: ['href','title','src','alt','class','style','onerror']
+                ALLOWED_TAGS:  ['b','i','em','strong','a','p','ul','ol','li','br','span','img','svg','image'],
+                ALLOWED_ATTR:  ['href','title','src','alt','class','style','xlink:href','xmlns','width','height'],
+                FORBID_TAGS:   ['script','iframe','object','embed'],
+                FORBID_ATTR:   ['onerror','onload','onclick','onfocus']
             });
+
 
             const previewContainer = document.getElementById('preview-container');
             previewContainer.innerHTML = cleanBody;
 
-            // <img>에 onerror가 있으면 notifyFlag 실행
-            const img = previewContainer.querySelector('img[onerror]');
-            if (img) {
-                notifyFlag();
-            }
+            // 이미지 에러 발생 시 notifyFlag 호출
+            previewContainer.querySelectorAll('img').forEach(img => {
+                img.addEventListener('error', () => {
+                    notifyFlag();
+                }, { once: true });
+            });
+
+            // SVG 태그 내 onload 실행 시 notifyFlag() 호출 가능
         }
 
-        // 플래그 세션 활성화 요청
+        // 서버에 플래그 세션 저장 요청
         function notifyFlag() {
             fetch('post.php?id=<?= $post_id ?>', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: 'triggered=1'
+            }).then(() => {
+                location.href = 'post.php?id=<?= $post_id ?>#flag';
             });
         }
     </script>
@@ -110,10 +119,12 @@ $comments = get_comments($db_conn, $post_id);
             <label for="name">이름</label>
             <input type="text" id="name" name="name" required><br>
         </div>
+
         <div class="form-group">
             <label for="email">이메일</label>
             <input type="email" id="email" name="email" required><br>
         </div>
+
         <div class="form-group">
             <label for="body">댓글</label>
             <textarea name="body" id="body" required></textarea><br>
